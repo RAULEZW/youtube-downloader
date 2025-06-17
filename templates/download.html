@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Download Progress</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background: #f8f9fa;
+      font-family: system-ui, sans-serif;
+      padding-top: 2rem;
+    }
+    .container {
+      max-width: 500px;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .fade-in {
+      animation: fadein 0.3s ease-in;
+    }
+    @keyframes fadein {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center fade-in">
+    <h2 class="mb-4">Download Progress</h2>
+
+    <!-- Bootstrap Progress Bar -->
+    <div class="progress mb-3" style="height: 30px;">
+      <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+           role="progressbar" style="width: 0%;">
+        0%
+      </div>
+    </div>
+
+    <!-- Status message -->
+    <p id="statusMessage" class="mb-4">Waiting for response...</p>
+
+    <!-- Download button -->
+    <div id="downloadLink" class="d-none mb-3">
+      <a href="#" class="btn btn-success w-100" download>⬇️ Download File</a>
+    </div>
+
+    <!-- Back to Home button -->
+    <div>
+      <a href="/" class="btn btn-outline-secondary w-100">← Back to Home</a>
+    </div>
+  </div>
+
+  <script>
+    const downloadId = "{{ download_id }}";
+    const progressBar = document.getElementById('progressBar');
+    const statusMessage = document.getElementById('statusMessage');
+    const downloadLinkDiv = document.getElementById('downloadLink');
+    const downloadLink = downloadLinkDiv.querySelector('a');
+
+    let lastStatus = '';
+
+    function resetUI() {
+      progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+      progressBar.style.width = '0%';
+      progressBar.textContent = '0%';
+      progressBar.classList.remove('bg-success', 'bg-danger');
+
+      statusMessage.textContent = 'Waiting for response...';
+      downloadLinkDiv.classList.add('d-none');
+    }
+
+    function updateUI(data) {
+      const percent = data.progress || 0;
+      const message = data.message || '';
+      const status = data.status;
+
+      progressBar.style.width = percent + '%';
+      progressBar.textContent = percent + '%';
+      statusMessage.textContent = message;
+
+      if (status !== lastStatus && (status === 'starting' || status === 'downloading')) {
+        resetUI();  // Clean up UI on restart
+      }
+
+      if (status === 'completed') {
+        progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+        progressBar.classList.add('bg-success');
+        downloadLink.href = `/download_file/${downloadId}`;
+        downloadLink.download = data.filename || 'download';
+        downloadLinkDiv.classList.remove('d-none');
+      }
+
+      if (status === 'error') {
+        progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+        progressBar.classList.add('bg-danger');
+        statusMessage.textContent = '❌ ' + (message || 'Unknown error occurred.');
+        downloadLinkDiv.classList.add('d-none');
+      }
+
+      lastStatus = status;
+    }
+
+    function pollProgress() {
+      fetch(`/progress/${downloadId}`)
+        .then(response => response.json())
+        .then(data => {
+          updateUI(data);
+          if (data.status !== 'completed' && data.status !== 'error') {
+            setTimeout(pollProgress, 1000);
+          }
+        })
+        .catch(() => {
+          statusMessage.textContent = "⚠️ Unable to contact server.";
+          setTimeout(pollProgress, 3000);
+        });
+    }
+
+    resetUI();
+    pollProgress();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

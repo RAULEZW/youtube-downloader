@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: youtube-downloader-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: youtube-downloader-redis
+
+  - type: worker
+    name: youtube-downloader-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python worker.py
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: youtube-downloader-redis
+
+databases:
+  - name: youtube-downloader-redis

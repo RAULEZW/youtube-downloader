@@ -1,127 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Download Progress</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <style>
-    body {
-      background: #f8f9fa;
-      font-family: system-ui, sans-serif;
-      padding-top: 2rem;
-    }
-    .container {
-      max-width: 500px;
-      background: white;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.05);
-    }
-    .fade-in {
-      animation: fadein 0.3s ease-in;
-    }
-    @keyframes fadein {
-      from { opacity: 0; }
-      to   { opacity: 1; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Downloading…</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #121212;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            height: 25px;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #007aff;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 12px;
+            background: #007aff;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #005fcc;
+        }
+    </style>
 </head>
 <body>
-  <div class="container text-center fade-in">
-    <h2 class="mb-4">Download Progress</h2>
+    <div class="container">
+        <h1>Downloading…</h1>
 
-    <!-- Bootstrap Progress Bar -->
-    <div class="progress mb-3" style="height: 30px;">
-      <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
-           role="progressbar" style="width: 0%;">
-        0%
-      </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <div class="status" id="status-message">Preparing…</div>
+
+        <a href="{{ url_for('index') }}" class="btn">Back to Home</a>
+        <a href="#" id="download-link" class="btn" style="display:none;">Download File</a>
     </div>
 
-    <!-- Status message -->
-    <p id="statusMessage" class="mb-4">Waiting for response...</p>
+    <script>
+        const downloadId = "{{ download_id }}";
+        const progressBar = document.getElementById('progress-bar');
+        const statusMessage = document.getElementById('status-message');
+        const downloadLink = document.getElementById('download-link');
 
-    <!-- Download button -->
-    <div id="downloadLink" class="d-none mb-3">
-      <a href="#" class="btn btn-success w-100" download>⬇️ Download File</a>
-    </div>
+        function fetchProgress() {
+            fetch(`/progress/${downloadId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        progressBar.style.width = '100%';
+                        statusMessage.textContent = 'Download completed!';
+                        downloadLink.href = `/download_file/${downloadId}`;
+                        downloadLink.style.display = 'inline-block';
+                    } else if (data.status === 'error') {
+                        statusMessage.textContent = 'Error: ' + (data.message || 'Unknown error');
+                        downloadLink.style.display = 'none';
+                    } else {
+                        progressBar.style.width = `${data.progress || 0}%`;
+                        statusMessage.textContent = `Status: ${data.status}, Progress: ${data.progress || 0}%`;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    statusMessage.textContent = 'Error fetching progress.';
+                });
+        }
 
-    <!-- Back to Home button -->
-    <div>
-      <a href="/" class="btn btn-outline-secondary w-100">← Back to Home</a>
-    </div>
-  </div>
-
-  <script>
-    const downloadId = "{{ download_id }}";
-    const progressBar = document.getElementById('progressBar');
-    const statusMessage = document.getElementById('statusMessage');
-    const downloadLinkDiv = document.getElementById('downloadLink');
-    const downloadLink = downloadLinkDiv.querySelector('a');
-
-    let lastStatus = '';
-
-    function resetUI() {
-      progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
-      progressBar.style.width = '0%';
-      progressBar.textContent = '0%';
-      progressBar.classList.remove('bg-success', 'bg-danger');
-
-      statusMessage.textContent = 'Waiting for response...';
-      downloadLinkDiv.classList.add('d-none');
-    }
-
-    function updateUI(data) {
-      const percent = data.progress || 0;
-      const message = data.message || '';
-      const status = data.status;
-
-      progressBar.style.width = percent + '%';
-      progressBar.textContent = percent + '%';
-      statusMessage.textContent = message;
-
-      if (status !== lastStatus && (status === 'starting' || status === 'downloading')) {
-        resetUI();  // Clean up UI on restart
-      }
-
-      if (status === 'completed') {
-        progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-        progressBar.classList.add('bg-success');
-        downloadLink.href = `/download_file/${downloadId}`;
-        downloadLink.download = data.filename || 'download';
-        downloadLinkDiv.classList.remove('d-none');
-      }
-
-      if (status === 'error') {
-        progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-        progressBar.classList.add('bg-danger');
-        statusMessage.textContent = '❌ ' + (message || 'Unknown error occurred.');
-        downloadLinkDiv.classList.add('d-none');
-      }
-
-      lastStatus = status;
-    }
-
-    function pollProgress() {
-      fetch(`/progress/${downloadId}`)
-        .then(response => response.json())
-        .then(data => {
-          updateUI(data);
-          if (data.status !== 'completed' && data.status !== 'error') {
-            setTimeout(pollProgress, 1000);
-          }
-        })
-        .catch(() => {
-          statusMessage.textContent = "⚠️ Unable to contact server.";
-          setTimeout(pollProgress, 3000);
-        });
-    }
-
-    resetUI();
-    pollProgress();
-  </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        setInterval(fetchProgress, 2000);
+        fetchProgress();
+    </script>
 </body>
 </html>

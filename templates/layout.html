@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title or "YouTube Downloader" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>YouTube Downloader</h1>
+    </header>
+    {% block content %}{% endblock %}
+  </div>
+  <script>
+    function updateProgress(p) {
+      document.querySelector(".progress-bar").style.width = p + "%";
+    }
+  </script>
+</body>
+</html>
